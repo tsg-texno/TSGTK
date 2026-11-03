@@ -1,0 +1,20 @@
+import {describe,it,expect} from 'vitest';
+import {analyzeLog,compareLogs,redact,validateMissionText} from '../src/toolkit/diagnostics';
+import {bearing,distance,bearingDifference} from '../src/toolkit/navigation';
+import {emptyReplay,replaySchema,replayMarkdown} from '../src/toolkit/data';
+import {objectTitle,type MapObject,lines,zones} from '../src/domain';
+describe('Диагностика RPT',()=>{
+ it('группирует повторы независимо от времени и маскирует приватные поля',()=>{const r=analyzeLog('12:00:01 Addon abc requires addon xyz\n12:00:02 Addon abc requires addon xyz\n12:00:03 Error undefined variable C:\\Users\\TestUser\\profile 192.168.1.2:2302 76561198000000001');expect(r.findings).toHaveLength(2);expect(r.findings[0].count).toBe(2);expect(JSON.stringify(r)).not.toContain('TestUser');expect(JSON.stringify(r)).not.toContain('192.168.1.2');expect(JSON.stringify(r)).not.toContain('76561198000000001');});
+ it('сравнивает появившиеся, исчезнувшие и выросшие группы',()=>{const before=analyzeLog('Addon a requires addon b\nCannot load texture old.paa');const now=analyzeLog('Addon a requires addon b\nAddon a requires addon b\nError undefined variable hello');const diff=compareLogs(now,before);expect(diff.added).toHaveLength(1);expect(diff.resolved).toHaveLength(1);expect(diff.increased).toHaveLength(1);});
+ it('не сообщает о сбое по одному упоминанию TFAR и не выводит исходные пути',()=>{expect(analyzeLog('TFAR initialized successfully').matchCount).toBe(0);expect(redact('/home/player/file C:\\Users\\Player\\foo')).not.toContain('player');});
+});
+describe('Структура исходников миссии',()=>{
+ it('игнорирует скобки в строках и комментариях, читает addon-классы',()=>{const r=validateMissionText('class Mission {\n addOns[]={"a","b"};\n text="} /* not comment */"; // ]\n /* ( */\n};',new Set(['a']));expect(r.dependencies).toEqual(['a','b']);expect(r.issues.filter(i=>i.severity==='error')).toEqual([]);expect(r.issues[0].message).toContain('b');});
+ it('находит незакрытые конструкции и не считает двойные кавычки концом строки',()=>{expect(validateMissionText('class A { text="a ""b"" c"; };').issues).toEqual([]);expect(validateMissionText('class A {\n /* unfinished').issues.map(i=>i.message)).toEqual(expect.arrayContaining(['Незакрытый блочный комментарий','Незакрытая скобка {']));expect(validateMissionText('class A { a=[1,2); };').issues.some(i=>i.severity==='error')).toBe(true);});
+});
+describe('Academy',()=>{it('рассчитывает северный азимут, дистанцию и границу 360°',()=>{expect(bearing([0,0],[0,100])).toBe(0);expect(bearing([0,0],[100,0])).toBe(90);expect(bearing([0,0],[-100,0])).toBe(270);expect(distance([0,0],[300,400])).toBe(500);expect(bearingDifference(359,1)).toBe(2);});});
+describe('Журнал событий',()=>{
+ it('отклоняет незавершённые записи, события за концом и повторные ID',()=>{const event={id:crypto.randomUUID(),time:10,kind:'note',unit:'Альфа',details:'Сбор'};expect(replaySchema.safeParse({...emptyReplay,completed:false}).success).toBe(false);expect(replaySchema.safeParse({...emptyReplay,duration:5,events:[event]}).success).toBe(false);expect(replaySchema.safeParse({...emptyReplay,events:[event,event]}).success).toBe(false);});
+ it('строит AAR в хронологическом порядке по реальным событиям',()=>{const p=replaySchema.parse({...emptyReplay,events:[{id:crypto.randomUUID(),time:20,kind:'loss',unit:'Браво',details:'Позже'},{id:crypto.randomUUID(),time:10,kind:'note',unit:'Альфа',details:'Раньше'}]});const text=replayMarkdown(p);expect(text.indexOf('Раньше')).toBeLessThan(text.indexOf('Позже'));expect(text).toContain('не по телеметрии TSG');});
+});
+describe('Совместимость планов',()=>{it('сохраняет названия старых инструментов и применяет согласованные к новым',()=>{const old:MapObject={id:crypto.randomUUID(),kind:'line',symbol:3,label:'',color:'#E60000',geometry:{type:'LineString',coordinates:[[0,0],[1,1]]}};expect(objectTitle(old)).toBe('Стрелка');expect(objectTitle({...old,symbolSet:'tsg'})).toBe('Линия этапа');expect(lines).toContain('Граница ответственности');expect(zones).toContain('Район сосредоточения');});});

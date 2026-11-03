@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 test('локальная библиотека: реальный Altis, масштаб, сохранение и экспорт',async({page})=>{
  const catalog=await page.request.get('/local-maps/index.json');test.skip(!catalog.ok(),'Локальная библиотека не импортирована');
- await page.goto('/');await expect(page.getByText('Сохранено на устройстве',{exact:true})).toBeVisible();
+ await page.goto('/#planner');await expect(page.getByText('Сохранено на устройстве',{exact:true})).toBeVisible();
  await page.getByLabel('Локальная библиотека карт').selectOption('altis');await expect(page.getByText('▧ Altis · рельеф')).toBeVisible({timeout:20000});await expect(page.getByLabel('Ширина карты в метрах')).toHaveValue('30720');await expect(page.getByLabel('Высота карты в метрах')).toHaveValue('30720');
  await page.getByRole('button',{name:'◇ Маркер'}).click();await page.getByLabel('Редактор карты').click({position:{x:400,y:280}});await expect(page.getByText('1 объектов',{exact:true})).toBeVisible();await expect(page.getByText('Сохранено на устройстве',{exact:true})).toBeVisible();
  const download=page.waitForEvent('download');await page.getByRole('button',{name:'↓ Экспорт'}).click();const path=await (await download).path();const project=JSON.parse(await readFile(path!,'utf8'));expect(project.map.width).toBe(30720);expect(project.map.height).toBe(30720);expect(project.map.dataUrl).toMatch(/^data:image\/png;base64,/);expect(project.objects).toHaveLength(1);
@@ -10,7 +10,7 @@ test('локальная библиотека: реальный Altis, масш�
 });
 test('локальное редактирование, перенос, изоляция и offline PWA',async({page,context})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/');await expect(page.getByText('Сохранено на устройстве',{exact:true})).toBeVisible();
+ await page.goto('/#planner');await expect(page.getByText('Сохранено на устройстве',{exact:true})).toBeVisible();
  await page.getByLabel('Название проекта').fill('Проверка Альфа');
  await page.locator('input[type=file][accept="image/png,image/jpeg,image/webp"]').setInputFiles({name:'test-map.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=','base64')});
  await expect(page.getByText('▧ test-map.png')).toBeVisible();
