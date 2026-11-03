@@ -1,0 +1,4 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {validateManifest,heightAt,renderTerrain,encodePng} from './import-local-maps.mjs';
+const m={format:'r16',width:2,height:2,cellSize:5,originX:0,originY:0};
+test('R16 uses signed little endian heights and intervals for physical extent',()=>{const b=Buffer.alloc(8);[-200,-100,200,300].forEach((h,i)=>b.writeInt16LE(h,i*2));assert.deepEqual(validateManifest(m,8),{width:5,height:5});assert.equal(heightAt(b,m,0,0),-200);assert.throws(()=>validateManifest(m,6));});
+test('north is at top of PNG and south at bottom',()=>{const b=Buffer.alloc(8);[-200,-200,300,300].forEach((h,i)=>b.writeInt16LE(h,i*2));const image=renderTerrain(b,m,2);assert.ok(image.pixels[0]>image.pixels[6]);const png=encodePng(image);assert.equal(png.subarray(1,4).toString(),'PNG');assert.equal(png.readUInt32BE(16),2);});
