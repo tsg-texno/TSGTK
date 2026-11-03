@@ -1,0 +1,24 @@
+import {test,expect} from '@playwright/test';
+test('локальное редактирование, перенос, изоляция и offline PWA',async({page,context})=>{
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('/');await expect(page.getByText('Сохранено на устройстве',{exact:true})).toBeVisible();
+ await page.getByLabel('Название проекта').fill('Проверка Альфа');
+ await page.locator('input[type=file][accept="image/png,image/jpeg,image/webp"]').setInputFiles({name:'test-map.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aZ1sAAAAASUVORK5CYII=','base64')});
+ await expect(page.getByText('▧ test-map.png')).toBeVisible();
+ await page.getByRole('button',{name:'◇ Маркер'}).click();await page.getByRole('button',{name:'Вертолёт ∞',exact:true}).click();
+ const canvas=page.getByLabel('Редактор карты');await canvas.click({position:{x:300,y:250}});await expect(page.getByText('1 объектов',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'↗ Линия'}).click();await page.getByLabel('Тип объекта').selectOption('3');await canvas.click({position:{x:200,y:160}});await canvas.click({position:{x:400,y:220}});await canvas.dblclick({position:{x:500,y:160}});await expect(page.getByText('2 объектов',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'▱ Зона'}).click();await page.getByLabel('Тип объекта').selectOption('3');await canvas.click({position:{x:550,y:300}});await canvas.click({position:{x:700,y:300}});await canvas.click({position:{x:700,y:450}});await canvas.dblclick({position:{x:550,y:450}});await expect(page.getByText('3 объектов',{exact:true})).toBeVisible();
+ await page.getByTitle('Отменить',{exact:true}).click();await expect(page.getByText('2 объектов',{exact:true})).toBeVisible();await page.getByTitle('Повторить',{exact:true}).click();await expect(page.getByText('3 объектов',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'↖ Выбор'}).click();await canvas.click({position:{x:300,y:250}});await page.getByLabel('Подпись выбранного объекта').fill('Группа Альфа');
+ await page.getByRole('button',{name:'Сохранить',exact:true}).click();await expect(page.getByText('Сохранено на устройстве',{exact:true})).toBeVisible();
+ const downloaded=page.waitForEvent('download');await page.getByRole('button',{name:'↓ Экспорт'}).click();const file=await downloaded;const path=await file.path();expect(path).toBeTruthy();
+ await page.reload();await expect(page.getByLabel('Название проекта')).toHaveValue('Проверка Альфа');await expect(page.getByText('3 объектов',{exact:true})).toBeVisible();await expect(page.getByText('▧ test-map.png')).toBeVisible();
+ await page.getByLabel('Сторона',{exact:true}).selectOption('side-2');await expect(page.getByText('0 объектов',{exact:true})).toBeVisible();await expect(page.getByText('Сохранено на устройстве',{exact:true})).toBeVisible();
+ await page.locator('input[type=file][accept="application/json,.json"]').setInputFiles(path!);await expect(page.getByRole('alert')).toContainText('другому серверу или стороне');await page.getByRole('button',{name:'Закрыть',exact:true}).click();
+ await page.getByLabel('Сторона',{exact:true}).selectOption('side-1');await expect(page.getByText('3 объектов',{exact:true})).toBeVisible();await expect(page.getByText('Сохранено на устройстве',{exact:true})).toBeVisible();
+ await page.locator('input[type=file][accept="application/json,.json"]').setInputFiles(path!);await expect(page.getByText('3 объектов',{exact:true})).toBeVisible();await expect.poll(()=>page.getByLabel('Сохранённые проекты').locator('option').count()).toBe(3);
+ await page.getByLabel('Локальная роль').selectOption('fighter');await expect(page.getByRole('button',{name:'◇ Маркер'})).toBeDisabled();await expect(page.getByLabel('Название проекта')).toBeDisabled();await page.getByLabel('Локальная роль').selectOption('staff');
+ await page.evaluate(async()=>{await navigator.serviceWorker.ready;});await page.reload();await page.waitForFunction(()=>!!navigator.serviceWorker.controller);await context.setOffline(true);await page.reload();await expect(page.getByLabel('Название проекта')).toHaveValue('Проверка Альфа');await expect(page.getByText('3 объектов',{exact:true})).toBeVisible();
+ await expect(page.getByText('Сохранено на устройстве',{exact:true})).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);await page.screenshot({path:'../../work/editor-verified.png',fullPage:true});await context.setOffline(false);expect(errors).toEqual([]);
+});
