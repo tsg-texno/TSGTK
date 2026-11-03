@@ -11,6 +11,7 @@ export function validateManifest(m,bytes){
 }
 // Source converter stores signed 16-bit metres, little-endian, rows from south to north.
 export function heightAt(buffer,m,x,y){return buffer.readInt16LE((y*m.width+x)*2);}
+export function findTrainingSpots(buffer,m){const spots=[];const step=Math.max(1,Math.floor(Math.min(m.width,m.height)/20));const margin=Math.ceil(1200/m.cellSize);for(let y=margin;y<m.height-margin;y+=step)for(let x=margin;x<m.width-margin;x+=step){const radius=Math.ceil(850/m.cellSize);const land=[[x,y],[x-radius,y],[x+radius,y],[x,y-radius],[x,y+radius]].every(([sx,sy])=>heightAt(buffer,m,sx,sy)>3);if(land)spots.push({x:x*m.cellSize,y:y*m.cellSize});}return spots.slice(0,500);}
 const stops=[[-300,[22,52,68]],[-1,[91,145,152]],[0,[216,211,170]],[10,[164,182,126]],[100,[126,153,103]],[300,[166,168,119]],[650,[168,145,111]],[1400,[217,208,183]]];
 function terrainColor(h){let i=1;while(i<stops.length-1&&h>stops[i][0])i++;const [a,c]=stops[i-1], [b,d]=stops[i];const t=Math.max(0,Math.min(1,(h-a)/(b-a)));return c.map((v,k)=>v+(d[k]-v)*t);}
 export function renderTerrain(buffer,m,limit=2048){
@@ -35,7 +36,7 @@ async function main(){
  for(const entry of (await readdir(source,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))){if(!entry.isDirectory())continue;
   const folder=join(source,entry.name);const m=JSON.parse(await readFile(join(folder,'manifest.json'),'utf8'));if(!/^[a-z0-9_-]+$/i.test(m.id)||typeof m.name!=='string'||m.name.length>180||typeof m.file!=='string'||basename(m.file)!==m.file)throw Error(`Invalid manifest: ${entry.name}`);
   const file=join(folder,m.file);validateManifest(m,(await stat(file)).size);const data=await readFile(file);const extent=validateManifest(m,data.length);const png=encodePng(renderTerrain(data,m));await writeFile(join(destination,m.id+'.png'),png);
-  maps.push({id:m.id,name:m.name+' · рельеф',...extent,url:`local-maps/${m.id}.png`});console.log(`${m.name}: ${extent.width} × ${extent.height} m → ${Math.round(png.length/1024)} KB`);
+  maps.push({id:m.id,name:m.name+' · рельеф',...extent,trainingSpots:findTrainingSpots(data,m),url:`local-maps/${m.id}.png`});console.log(`${m.name}: ${extent.width} × ${extent.height} m → ${Math.round(png.length/1024)} KB`);
  }
  await writeFile(join(destination,'index.json'),JSON.stringify(maps,null,2)+'\n');console.log(`Imported ${maps.length} maps. Original R16 files were not copied.`);
 }

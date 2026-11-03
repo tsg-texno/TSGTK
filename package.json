@@ -1,7 +1,7 @@
 {
   "name": "tsg-operations-planner",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -9,7 +9,9 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run tests/core.test.ts tests/toolkit.test.ts",
     "test:browser": "playwright test",
-    "maps:import": "node scripts/import-local-maps.mjs"
+    "maps:import": "node scripts/import-local-maps.mjs",
+    "local": "node scripts/local-server.mjs",
+    "test:local": "node --test scripts/local-server.test.mjs"
   },
   "dependencies": {
     "idb": "^8.0.3",

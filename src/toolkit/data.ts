@@ -14,7 +14,7 @@ export type ReplayEvent=z.infer<typeof eventSchema>;
 export const replaySchema=z.object({format:z.literal('tsg-toolkit-events'),version:z.literal(1),title:z.string().min(1).max(150),completed:z.literal(true),sourceUrl:z.union([z.literal(''),z.string().url().startsWith('https://')]),duration:z.number().finite().min(1).max(86400),events:z.array(eventSchema).max(20000)}).superRefine((r,c)=>{for(const e of r.events){if(e.time>r.duration)c.addIssue({code:'custom',message:'Событие выходит за длительность записи'});if((e.x===undefined)!==(e.y===undefined))c.addIssue({code:'custom',message:'Координаты X и Y задаются вместе'});}if(new Set(r.events.map(e=>e.id)).size!==r.events.length)c.addIssue({code:'custom',message:'Повторяющиеся ID событий'});});
 export type Replay=z.infer<typeof replaySchema>;
 export const emptyReplay:Replay={format:'tsg-toolkit-events',version:1,title:'Разбор игры',completed:true,sourceUrl:'',duration:3600,events:[]};
-export const progressSchema=z.array(z.object({id:z.string().uuid(),topic:z.enum(['coordinates','bearing','distance','radio']),correct:z.boolean(),at:z.string().datetime()})).max(2000);
+export const progressSchema=z.array(z.object({id:z.string().uuid(),topic:z.enum(['coordinates','bearing','distance','radio','channels','controls']),correct:z.boolean(),at:z.string().datetime()})).max(2000);
 export type Progress=z.infer<typeof progressSchema>;
 export const eventNames={contact:'Контакт',loss:'Потеря',objective:'Задача',note:'Заметка'};
 export function clock(seconds:number){const t=Math.floor(seconds);return `${Math.floor(t/60).toString().padStart(2,'0')}:${(t%60).toString().padStart(2,'0')}`;}
